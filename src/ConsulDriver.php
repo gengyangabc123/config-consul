@@ -114,7 +114,6 @@ class ConsulDriver extends AbstractDriver
 
     protected function updateConfig(array $config)
     {
-        echo json_encode($config);
         $mergedConfigs = [];
         foreach ($config as $c) {
             foreach ($c as $key => $value) {
