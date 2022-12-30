@@ -1,0 +1,51 @@
+{
+    "name": "gengyangabc123/config-consul",
+    "description": "An consul adapter for Hyperf config component.",
+    "license": "MIT",
+    "keywords": [
+        "php",
+        "swoole",
+        "hyperf",
+        "config",
+        "configuration",
+        "adapter"
+    ],
+    "homepage": "https://hyperf.io",
+    "support": {
+        "docs": "https://hyperf.wiki",
+        "issues": "https://github.com/hyperf/hyperf/issues",
+        "pull-request": "https://github.com/hyperf/hyperf/pulls",
+        "source": "https://github.com/hyperf/hyperf"
+    },
+    "require": {
+        "php": ">=7.2",
+        "psr/container": "^1.0|^2.0",
+        "hyperf/contract": "~2.2.0",
+        "hyperf/config-center": "~2.2.0",
+        "hyperf/utils": "~2.2.0"
+    },
+    "suggest": {
+        "hyperf/process": "Use hyperf process to run ConfigFetcherProcess."
+    },
+    "autoload": {
+        "psr-4": {
+            "Hyperf\\ConfigConsul\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "HyperfTest\\ConfigConsul\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "2.2-dev"
+        },
+        "hyperf": {
+            "config": "Hyperf\\ConfigConsul\\ConfigProvider"
+        }
+    }
+}
