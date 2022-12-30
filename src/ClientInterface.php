@@ -17,7 +17,5 @@ interface ClientInterface extends \Hyperf\ConfigCenter\Contract\ClientInterface
 {
     public function getOption(): Option;
 
-    public function parallelPull(array $namespaces): array;
-
-    public function longPulling(array $notifications): ?ResponseInterface;
+    public function parallelPull(): array;
 }

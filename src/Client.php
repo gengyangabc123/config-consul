@@ -59,9 +59,7 @@ class Client implements ClientInterface
 
     public function pull(): array
     {
-        $namespaces = $this->config->get('config_center.drivers.consul.namespaces');
-        var_dump($namespaces);
-        return $this->parallelPull($namespaces);
+        return $this->parallelPull();
     }
 
     public function getOption(): Option
@@ -69,75 +67,73 @@ class Client implements ClientInterface
         return $this->option;
     }
 
-    public function parallelPull(array $namespaces): array
+    public function parallelPull(): array
     {
         $option = $this->option;
         $parallel = new Parallel();
         $httpClientFactory = $this->httpClientFactory;
-        foreach ($namespaces as $namespace) {
-            $parallel->add(function () use ($option, $httpClientFactory, $namespace) {
-                $client = $httpClientFactory();
-                if (! $client instanceof \GuzzleHttp\Client) {
-                    throw new RuntimeException('Invalid http client.');
-                }
-                $cacheKey = $option->buildCacheKey($namespace);
-                $releaseKey = $this->getReleaseKey($cacheKey);
-                $query = [
-                    'ip' => $option->getClientIp(),
-                    'releaseKey' => $releaseKey,
-                ];
-                $timestamp = $this->getTimestamp();
-                $headers = [
-                    'Authorization' => $this->getAuthorization($timestamp, parse_url($option->buildBaseUrl(), PHP_URL_PATH) . $namespace . '?' . http_build_query($query)),
-                    'Timestamp' => $timestamp,
-                ];
+        $parallel->add(function () use ($option, $httpClientFactory) {
+            $client = $httpClientFactory();
+            if (! $client instanceof \GuzzleHttp\Client) {
+                throw new RuntimeException('Invalid http client.');
+            }
+            $cacheKey = $option->buildCacheKey();
+            $releaseKey = $this->getReleaseKey($cacheKey);
+            $query = [
+                'keys' => '',
+                'ip' => $option->getClientIp(),
+                'releaseKey' => $releaseKey,
+            ];
+            $timestamp = $this->getTimestamp();
+            $headers = [
+                'Authorization' => $this->getAuthorization($timestamp, parse_url($option->buildBaseUrl(), PHP_URL_PATH) . '?' . http_build_query($query)),
+                'Timestamp' => $timestamp,
+            ];
 
-                $response = $client->get($option->buildBaseUrl() . $namespace, [
-                    'query' => $query,
-                    'headers' => $headers,
-                ]);
-                if ($response->getStatusCode() === 200 && strpos($response->getHeaderLine('content-type'), 'application/json') !== false) {
-                    $body = json_decode((string) $response->getBody(), true);
-                    $result = $body['configurations'] ?? [];
-                    $this->cache[$cacheKey] = [
-                        'releaseKey' => $body['releaseKey'] ?? '',
-                        'configurations' => $result,
-                    ];
-                } else {
-                    // Status code is 304 or Connection Failed, use the previous config value
-                    $result = $this->cache[$cacheKey]['configurations'] ?? [];
-                    if ($response->getStatusCode() !== 304) {
-                        $this->logger->error('Connect to Apollo server failed');
+            $response = $client->get($option->buildBaseUrl(), [
+                'query' => $query,
+                'headers' => $headers,
+            ]);
+            if ($response->getStatusCode() === 200 && strpos($response->getHeaderLine('content-type'), 'application/json') !== false) {
+                $body = json_decode((string) $response->getBody(), true);
+                $result = array();
+                if(!empty($body)){
+                    foreach ($body as $configName){
+                        if(substr($configName,0,-1) != '/'){
+                            $configQuery = [
+                                'ip' => $option->getClientIp(),
+                                'releaseKey' => $releaseKey,
+                            ];
+                            $configResponse = $client->get(trim($option->buildBaseUrl(), $option->getServiceName()).$configName, [
+                                'query' => $configQuery,
+                                'headers' => $headers,
+                            ]);
+                            $configBody = json_decode((string) $configResponse->getBody(), true);
+                            if(isset($configBody[0]['Value'])){
+                                $config = json_decode(base64_decode($configBody[0]['Value']), true);
+                                if(!empty($config)){
+                                    foreach ($config as $key => $value) {
+                                        $result[$key] = $value;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-                return $result;
-            }, $namespace);
-        }
+                $this->cache[$cacheKey] = [
+                    'releaseKey' => $body['releaseKey'] ?? '',
+                    'configurations' => $result,
+                ];
+            } else {
+                // Status code is 304 or Connection Failed, use the previous config value
+                $result = $this->cache[$cacheKey]['configurations'] ?? [];
+                if ($response->getStatusCode() !== 304) {
+                    $this->logger->error('Connect to Consul server failed');
+                }
+            }
+            return $result;
+        });
         return $parallel->wait();
-    }
-
-    public function longPulling(array $notifications): ?ResponseInterface
-    {
-        $httpClientFactory = $this->httpClientFactory;
-        $client = $httpClientFactory([
-            'timeout' => 60,
-        ]);
-        if (! $client instanceof \GuzzleHttp\Client) {
-            throw new RuntimeException('Invalid http client.');
-        }
-        try {
-            $uri = $this->option->buildLongPullingBaseUrl();
-            return $client->get($uri, [
-                'query' => [
-                    'appId' => $this->option->getAppid(),
-                    'cluster' => $this->option->getCluster(),
-                    'notifications' => json_encode(array_values($notifications)),
-                ],
-            ]);
-        } catch (\Exception $exceptiosn) {
-            // Do nothing
-            return null;
-        }
     }
 
     protected function getReleaseKey(string $cacheKey): ?string
@@ -163,6 +159,6 @@ class Client implements ClientInterface
         }
         $toSignature = $timestamp . "\n" . $pathWithQuery;
         $signature = base64_encode(hash_hmac('sha1', $toSignature, $this->option->getSecret(), true));
-        return sprintf('Apollo %s:%s', $this->option->getAppid(), $signature);
+        return sprintf('Consul %s:%s', $this->option->getAppid(), $signature);
     }
 }

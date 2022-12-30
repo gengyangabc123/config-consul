@@ -39,9 +39,7 @@ class ConsulDriver extends AbstractDriver
     public function createMessageFetcherLoop(): void
     {
         $pullMode = $this->config->get('config_center.drivers.consul.pull_mode', PullMode::INTERVAL);
-        if ($pullMode === PullMode::LONG_PULLING) {
-            $this->handleLongPullingLoop();
-        } elseif ($pullMode === PullMode::INTERVAL) {
+        if ($pullMode === PullMode::INTERVAL) {
             $this->handleIntervalLoop();
         }
     }
@@ -54,30 +52,6 @@ class ConsulDriver extends AbstractDriver
             if ($config !== $prevConfig) {
                 $this->syncConfig($config);
                 $prevConfig = $config;
-            }
-        });
-    }
-
-    protected function handleLongPullingLoop(): void
-    {
-        $prevConfig = [];
-        $channel = new Channel(1);
-        $this->longPulling($channel);
-        Coroutine::create(function () use (&$prevConfig, $channel) {
-            while (true) {
-                try {
-                    $namespaces = $channel->pop();
-                    if (! $namespaces && $channel->isClosing()) {
-                        break;
-                    }
-                    $config = $this->client->parallelPull($namespaces);
-                    if ($config !== $prevConfig) {
-                        $this->syncConfig($config);
-                        $prevConfig = $config;
-                    }
-                } catch (\Throwable $exception) {
-                    $this->logger->error((string) $exception);
-                }
             }
         });
     }
@@ -103,33 +77,6 @@ class ConsulDriver extends AbstractDriver
                 }
             }, $interval * 1000);
         });
-    }
-
-    protected function longPulling(Channel $channel): void
-    {
-        $namespaces = $this->config->get('config_center.drivers.consul.namespaces', []);
-        foreach ($namespaces as $namespace) {
-            $this->notifications[$namespace] = [
-                'namespaceName' => $namespace,
-                'notificationId' => -1,
-            ];
-        }
-        $this->loop(function () use ($channel) {
-            $response = $this->client->longPulling($this->notifications);
-            if ($response instanceof ResponseInterface && $response->getStatusCode() === 200) {
-                $body = json_decode((string) $response->getBody(), true);
-                foreach ($body as $item) {
-                    if (isset($item['namespaceName'], $item['notificationId']) && $item['notificationId'] > $this->notifications[$item['namespaceName']]['notificationId']) {
-                        $prevId = $this->notifications[$item['namespaceName']]['notificationId'];
-                        $this->notifications[$item['namespaceName']]['notificationId'] = $afterId = $item['notificationId'];
-                        $this->logger->debug(sprintf('Updated apollo namespace [%s] notification id from %s to %s', $item['namespaceName'], $prevId, $afterId));
-                        if ($prevId > -1) {
-                            $channel->push([$item['namespaceName']]);
-                        }
-                    }
-                }
-            }
-        }, $channel);
     }
 
     protected function pull(): array
@@ -167,6 +114,7 @@ class ConsulDriver extends AbstractDriver
 
     protected function updateConfig(array $config)
     {
+        echo json_encode($config);
         $mergedConfigs = [];
         foreach ($config as $c) {
             foreach ($c as $key => $value) {

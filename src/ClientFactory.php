@@ -21,11 +21,11 @@ class ClientFactory
     public function __invoke(ContainerInterface $container)
     {
         $config = $container->get(ConfigInterface::class);
-        /** @var \Hyperf\ConfigApollo\Option $option */
+        /** @var \Hyperf\ConfigConsul\Option $option */
         $option = make(Option::class);
         $option->setServer($config->get('config_center.drivers.consul.server', 'http://127.0.0.1:8080'))
-            ->setAppid($config->get('config_center.drivers.consul.appid', ''))
-            ->setCluster($config->get('config_center.drivers.consul.cluster', ''))
+            ->setVersions($config->get('config_center.drivers.consul.versions', ''))
+            ->setServiceName($config->get('config_center.drivers.consul.serviceName', ''))
             ->setClientIp($config->get('config_center.drivers.consul.client_ip', Network::ip()))
             ->setPullTimeout($config->get('config_center.drivers.consul.pull_timeout', 10))
             ->setIntervalTimeout($config->get('config_center.drivers.consul.interval_timeout', 60))

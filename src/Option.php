@@ -23,17 +23,12 @@ class Option
     /**
      * @var string
      */
-    private $appid = '';
-
-    /**
-     * @var array
-     */
-    private $namespaces = [];
+    private $versions = '';
 
     /**
      * @var string
      */
-    private $cluster = 'default';
+    private $serviceName = '';
 
     /**
      * @var string
@@ -59,24 +54,15 @@ class Option
     {
         return implode('/', [
             $this->getServer(),
-            'configs',
-            $this->getAppid(),
-            $this->getCluster(),
-        ]) . '/';
-    }
-
-    public function buildLongPullingBaseUrl(): string
-    {
-        return implode('/', [
-            $this->getServer(),
-            'notifications',
-            'v2',
+            $this->getVersions(),
+            'kv',
+            $this->getServiceName(),
         ]);
     }
 
-    public function buildCacheKey(string $namespace): string
+    public function buildCacheKey(): string
     {
-        return implode('+', [$this->getAppid() . $this->getCluster(), $namespace]);
+        return implode('+', [$this->getServiceName()]);
     }
 
     public function getServer(): string
@@ -93,36 +79,31 @@ class Option
         return $this;
     }
 
-    public function getAppid(): string
+    public function getServiceName(): string
     {
-        return $this->appid;
+        return $this->serviceName;
     }
 
-    public function setAppid(string $appid): self
+    public function setServiceName(string $serviceName): self
     {
-        $this->appid = $appid;
+        $this->serviceName = $serviceName;
         return $this;
     }
 
-    public function getNamespaces(): array
+    /**
+     * @return string
+     */
+    public function getVersions(): string
     {
-        return $this->namespaces;
+        return $this->versions;
     }
 
-    public function setNamespaces(array $namespaces): self
+    /**
+     * @param string $versions
+     */
+    public function setVersions(string $versions): self
     {
-        $this->namespaces = $namespaces;
-        return $this;
-    }
-
-    public function getCluster(): string
-    {
-        return $this->cluster;
-    }
-
-    public function setCluster(string $cluster): self
-    {
-        $this->cluster = $cluster;
+        $this->versions = $versions;
         return $this;
     }
 
