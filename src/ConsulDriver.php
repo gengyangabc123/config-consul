@@ -121,7 +121,6 @@ class ConsulDriver extends AbstractDriver
                 $mergedConfigs[$key] = $value;
             }
         }
-        unset($config);
         foreach ($mergedConfigs ?? [] as $key => $value) {
             $this->config->set($key, $this->formatValue($value));
             $this->logger->debug(sprintf('Config [%s] is updated', $key));
